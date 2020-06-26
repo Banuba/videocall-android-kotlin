@@ -1,4 +1,4 @@
-Quick start examples for [Banuba SDK on Android](https://docs.banuba.com/docs/android/android_overview).
+Quick start examples for [Banuba SDK on Android](https://docs.banuba.com/docs/android/android_overview) and [Agora.io](https://www.agora.io/en/) SDK integration to enhance video calls with real-time face filters and virtual backgrounds.
 
 # Getting Started
 
