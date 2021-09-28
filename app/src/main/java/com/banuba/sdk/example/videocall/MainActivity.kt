@@ -105,7 +105,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        banubaSdkManager.effectPlayer.setEffectVolume(0F)
+        banubaSdkManager.effectPlayer.effectManager()?.setEffectVolume(0F)
         banubaSdkManager.effectPlayer.playbackPlay()
         banubaSdkManager.startForwardingFrames()
     }
