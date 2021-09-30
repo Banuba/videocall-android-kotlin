@@ -23,7 +23,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        private const val MASK_NAME = "UnluckyWitch"
+        private const val MASK_NAME = "TrollGrandma"
 
         private const val REQUEST_CODE_PERMISSIONS = 1001
 
