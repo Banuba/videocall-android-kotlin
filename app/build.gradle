@@ -38,7 +38,5 @@ dependencies {
     implementation 'io.agora.rtc:full-sdk:3.0.+'
 
     // Banuba SDK dependencies
-    implementation fileTree(dir: '../libs', include: ['*.aar'])
-    implementation files(":banuba_effect_player-release@aar")
-    implementation files(":banuba_sdk-release@aar")
+    implementation "com.banuba.sdk:banuba_sdk:1+"
 }
