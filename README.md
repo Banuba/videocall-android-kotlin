@@ -8,6 +8,10 @@ Quick start examples for [Banuba SDK on Android](https://docs.banuba.com/face-ar
 4. Copy and Paste your agora token, app and chanel ID into appropriate section of `videocall-android-kotlin/app/src/main/java/com/banuba/sdk/example/videocall/AgoraClientToken.kt` with “” symbols. For example: agora_token = “place_your_token_here”
 5. Open the project in Android Studio and run the necessary target using the usual steps.
 
+# How an example works
+
+This project is based on the BanubaSDKManager. BanubaSdkManager creates and manages the Banuba camera. Agor also has its own camera module, but in this example the Agora camera is not used, so in order to disable Agora camera is called setExternalVideoSource(...).  The frames from the Banuba camera are processed within BanubaSdk and the result transferred to the handler onFrameRendered(...). In the handler, frames are passed to the Agora module via pushExternalVideoFrame(...).
+
 # Contributing
 
 Contributions are what make the open source community such an amazing place to be learn, inspire, and create. Any contributions you make are **greatly appreciated**.
