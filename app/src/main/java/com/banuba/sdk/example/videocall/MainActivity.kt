@@ -14,10 +14,11 @@ import com.banuba.sdk.manager.BanubaSdkManager
 import com.banuba.sdk.manager.BanubaSdkTouchListener
 import com.banuba.sdk.manager.IEventCallback
 import com.banuba.sdk.types.Data
-import io.agora.rtc.IRtcEngineEventHandler
-import io.agora.rtc.RtcEngine
-import io.agora.rtc.video.AgoraVideoFrame
-import io.agora.rtc.video.VideoCanvas
+import io.agora.rtc2.Constants
+import io.agora.rtc2.IRtcEngineEventHandler
+import io.agora.rtc2.RtcEngine
+import io.agora.rtc2.video.AgoraVideoFrame
+import io.agora.rtc2.video.VideoCanvas
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -149,7 +150,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun configureRtcEngine() {
-        agoraRtc.setExternalVideoSource(true, false, true)
+        agoraRtc.setExternalVideoSource(true, false, Constants.ExternalVideoSourceType.VIDEO_FRAME)
         agoraRtc.enableVideo()
     }
 
