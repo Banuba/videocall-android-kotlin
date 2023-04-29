@@ -14,10 +14,12 @@ import com.banuba.sdk.manager.BanubaSdkManager
 import com.banuba.sdk.manager.BanubaSdkTouchListener
 import com.banuba.sdk.manager.IEventCallback
 import com.banuba.sdk.types.Data
-import io.agora.rtc.IRtcEngineEventHandler
-import io.agora.rtc.RtcEngine
-import io.agora.rtc.video.AgoraVideoFrame
-import io.agora.rtc.video.VideoCanvas
+import io.agora.rtc2.Constants
+import io.agora.rtc2.IRtcEngineEventHandler
+import io.agora.rtc2.RtcEngine
+import io.agora.rtc2.video.AgoraVideoFrame
+import io.agora.rtc2.video.VideoCanvas
+import io.agora.rtc2.video.VideoEncoderConfiguration
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -149,8 +151,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun configureRtcEngine() {
-        agoraRtc.setExternalVideoSource(true, false, true)
+        agoraRtc.setExternalVideoSource(true, false, Constants.ExternalVideoSourceType.VIDEO_FRAME)
+        val videoEncoderConfiguration = VideoEncoderConfiguration(
+            VideoEncoderConfiguration.VD_1280x720,
+            VideoEncoderConfiguration.FRAME_RATE.FRAME_RATE_FPS_30,
+            VideoEncoderConfiguration.STANDARD_BITRATE,
+            VideoEncoderConfiguration.ORIENTATION_MODE.ORIENTATION_MODE_FIXED_PORTRAIT
+        )
+        agoraRtc.setChannelProfile(Constants.CHANNEL_PROFILE_LIVE_BROADCASTING)
+        agoraRtc.setClientRole(Constants.CLIENT_ROLE_BROADCASTER)
+        agoraRtc.setVideoEncoderConfiguration(videoEncoderConfiguration)
         agoraRtc.enableVideo()
+        agoraRtc.enableAudio()
     }
 
     private fun setupLocalVideo() {
@@ -158,7 +170,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupRemoteVideo(uid: Int): SurfaceView {
-        val surfaceView = RtcEngine.CreateRendererView(this)
+        val surfaceView = SurfaceView(this)
         val videoCanvas = VideoCanvas(surfaceView, VideoCanvas.RENDER_MODE_HIDDEN, uid)
         agoraRtc.setupRemoteVideo(videoCanvas)
         return surfaceView
@@ -166,9 +178,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun joinRtcChannel() {
         agoraRtc.setDefaultAudioRoutetoSpeakerphone(true)
-        agoraRtc.joinChannel(
-            AGORA_CLIENT_TOKEN,
-            AGORA_CHANNEL_ID, null, 0)
+        agoraRtc.joinChannel(AGORA_CLIENT_TOKEN, AGORA_CHANNEL_ID, null, 0)
     }
 
     private fun pushCustomFrame(rawData: Data, width: Int, height: Int) {
