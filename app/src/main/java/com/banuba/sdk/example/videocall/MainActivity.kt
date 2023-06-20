@@ -2,18 +2,21 @@ package com.banuba.sdk.example.videocall
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.view.SurfaceView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import com.banuba.sdk.entity.RecordedVideoInfo
+import com.banuba.sdk.frame.FramePixelBuffer
+import com.banuba.sdk.input.CameraDevice
+import com.banuba.sdk.input.CameraDeviceConfigurator
+import com.banuba.sdk.input.CameraInput
 import com.banuba.sdk.manager.BanubaSdkManager
-import com.banuba.sdk.manager.BanubaSdkTouchListener
-import com.banuba.sdk.manager.IEventCallback
-import com.banuba.sdk.types.Data
+import com.banuba.sdk.output.FrameOutput
+import com.banuba.sdk.output.SurfaceOutput
+import com.banuba.sdk.player.Player
+import com.banuba.sdk.player.PlayerTouchListener
 import io.agora.rtc2.Constants
 import io.agora.rtc2.IRtcEngineEventHandler
 import io.agora.rtc2.RtcEngine
@@ -35,32 +38,26 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private val banubaSdkManager by lazy(LazyThreadSafetyMode.NONE) {
-        BanubaSdkManager(applicationContext)
+    private val player by lazy(LazyThreadSafetyMode.NONE) {
+        Player()
     }
-    private val banubaSdkEventCallback = object : IEventCallback {
-        override fun onFrameRendered(data: Data, width: Int, height: Int) {
-            pushCustomFrame(data, width, height)
-        }
 
-        override fun onImageProcessed(p0: Bitmap) {}
-
-        override fun onEditingModeFaceFound(p0: Boolean) {}
-
-        override fun onCameraOpenError(p0: Throwable) {}
-
-        override fun onVideoRecordingFinished(p0: RecordedVideoInfo) {}
-
-        override fun onVideoRecordingStatusChange(p0: Boolean) {}
-
-        override fun onHQPhotoReady(p0: Bitmap) {}
-
-        override fun onEditedImageReady(p0: Bitmap) {}
-
-        override fun onScreenshotReady(p0: Bitmap) {}
-
-        override fun onCameraStatus(p0: Boolean) {}
+    private val cameraDevice by lazy(LazyThreadSafetyMode.NONE) {
+        CameraDevice(requireNotNull(this.applicationContext), this@MainActivity)
     }
+
+    private val surfaceOutput by lazy(LazyThreadSafetyMode.NONE) {
+        SurfaceOutput(localSurfaceView.holder)
+    }
+
+    private val frameOutput by lazy(LazyThreadSafetyMode.NONE) {
+        FrameOutput(object : FrameOutput.IFramePixelBufferProvider {
+            override fun onFrame(pb: FramePixelBuffer?) {
+                pushCustomFrame(pb!!)
+            }
+        })
+    }
+
     private val maskUri by lazy(LazyThreadSafetyMode.NONE) {
         Uri.parse(BanubaSdkManager.getResourcesBase())
             .buildUpon()
@@ -97,9 +94,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        banubaSdkManager.attachSurface(localSurfaceView)
+        player.setEffectVolume(0F)
+        player.addOutput(surfaceOutput)
+        player.addOutput(frameOutput)
         if (checkAllPermissionsGranted()) {
-            banubaSdkManager.openCamera()
+            startCameraPreview()
         } else {
             requestPermissions(REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
@@ -107,21 +106,20 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        banubaSdkManager.effectPlayer.effectManager()?.setEffectVolume(0F)
-        banubaSdkManager.effectPlayerPlay()
-        banubaSdkManager.startForwardingFrames()
+        player.play()
     }
 
     override fun onPause() {
         super.onPause()
-        banubaSdkManager.effectPlayerPause()
-        banubaSdkManager.stopForwardingFrames()
+        player.pause()
     }
 
     override fun onStop() {
         super.onStop()
-        banubaSdkManager.releaseSurface()
-        banubaSdkManager.closeCamera()
+        cameraDevice.close()
+        player.close()
+        surfaceOutput.close()
+        frameOutput.close()
     }
 
     override fun onDestroy() {
@@ -136,7 +134,7 @@ class MainActivity : AppCompatActivity() {
         results: IntArray
     ) {
         if (checkAllPermissionsGranted()) {
-            banubaSdkManager.openCamera()
+            startCameraPreview()
         } else {
             Toast.makeText(applicationContext, "Please grant permission.", Toast.LENGTH_LONG).show()
             finish()
@@ -144,10 +142,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun configureSdkManager() {
-        val banubaTouchListener = BanubaSdkTouchListener(this, banubaSdkManager.effectPlayer)
-        localSurfaceView.setOnTouchListener(banubaTouchListener)
-        banubaSdkManager.effectManager.loadAsync(maskUri.toString())
-        banubaSdkManager.setCallback(banubaSdkEventCallback)
+        val playerTouchListener = PlayerTouchListener(this, player)
+        localSurfaceView.setOnTouchListener(playerTouchListener)
+        player.loadAsync(maskUri.toString())
+    }
+
+    private fun startCameraPreview() {
+        cameraDevice.configurator
+            .setVideoCaptureSize(CameraDeviceConfigurator.HD_CAPTURE_SIZE)
+            .setLens(CameraDeviceConfigurator.LensSelector.FRONT)
+            .commit();
+        cameraDevice.start()
+        player.use(CameraInput(cameraDevice))
     }
 
     private fun configureRtcEngine() {
@@ -181,15 +187,14 @@ class MainActivity : AppCompatActivity() {
         agoraRtc.joinChannel(AGORA_CLIENT_TOKEN, AGORA_CHANNEL_ID, null, 0)
     }
 
-    private fun pushCustomFrame(rawData: Data, width: Int, height: Int) {
-        val pixelData = ByteArray(rawData.data.remaining())
-        rawData.data.get(pixelData)
-        rawData.close()
+    private fun pushCustomFrame(pb: FramePixelBuffer) {
+        val pixelData = ByteArray(pb.buffer.remaining())
+        pb.buffer.get(pixelData)
         val videoFrame = AgoraVideoFrame().apply {
             timeStamp = System.currentTimeMillis()
             format = AgoraVideoFrame.FORMAT_RGBA
-            this.height = height
-            stride = width
+            height = pb.height
+            stride = pb.bytesPerRow
             buf = pixelData
         }
         agoraRtc.pushExternalVideoFrame(videoFrame)
