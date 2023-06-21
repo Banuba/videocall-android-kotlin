@@ -94,11 +94,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        player.setEffectVolume(0F)
-        player.addOutput(surfaceOutput)
-        player.addOutput(frameOutput)
         if (checkAllPermissionsGranted()) {
-            startCameraPreview()
+            cameraDevice.start()
         } else {
             requestPermissions(REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
@@ -115,17 +112,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        cameraDevice.stop()
         super.onStop()
-        cameraDevice.close()
-        player.close()
-        surfaceOutput.close()
-        frameOutput.close()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         agoraRtc.leaveChannel()
         RtcEngine.destroy()
+        cameraDevice.close()
+        player.close()
+        surfaceOutput.close()
+        frameOutput.close()
     }
 
     override fun onRequestPermissionsResult(
@@ -134,7 +132,7 @@ class MainActivity : AppCompatActivity() {
         results: IntArray
     ) {
         if (checkAllPermissionsGranted()) {
-            startCameraPreview()
+            cameraDevice.start()
         } else {
             Toast.makeText(applicationContext, "Please grant permission.", Toast.LENGTH_LONG).show()
             finish()
@@ -144,16 +142,11 @@ class MainActivity : AppCompatActivity() {
     private fun configureSdkManager() {
         val playerTouchListener = PlayerTouchListener(this, player)
         localSurfaceView.setOnTouchListener(playerTouchListener)
-        player.loadAsync(maskUri.toString())
-    }
-
-    private fun startCameraPreview() {
-        cameraDevice.configurator
-            .setVideoCaptureSize(CameraDeviceConfigurator.HD_CAPTURE_SIZE)
-            .setLens(CameraDeviceConfigurator.LensSelector.FRONT)
-            .commit();
-        cameraDevice.start()
+        player.setEffectVolume(0F)
         player.use(CameraInput(cameraDevice))
+        player.addOutput(surfaceOutput)
+        player.addOutput(frameOutput)
+        player.loadAsync(maskUri.toString())
     }
 
     private fun configureRtcEngine() {
