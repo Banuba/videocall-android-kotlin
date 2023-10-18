@@ -14,6 +14,7 @@ import com.banuba.sdk.input.CameraDeviceConfigurator
 import com.banuba.sdk.input.CameraInput
 import com.banuba.sdk.manager.BanubaSdkManager
 import com.banuba.sdk.output.FrameOutput
+import com.banuba.sdk.output.IOutput
 import com.banuba.sdk.output.SurfaceOutput
 import com.banuba.sdk.player.Player
 import com.banuba.sdk.player.PlayerTouchListener
@@ -52,7 +53,7 @@ class MainActivity : AppCompatActivity() {
 
     private val frameOutput by lazy(LazyThreadSafetyMode.NONE) {
         FrameOutput(object : FrameOutput.IFramePixelBufferProvider {
-            override fun onFrame(pb: FramePixelBuffer?) {
+            override fun onFrame(output: IOutput, pb: FramePixelBuffer?) {
                 pushCustomFrame(pb!!)
             }
         })
