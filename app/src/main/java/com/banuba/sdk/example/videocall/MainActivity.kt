@@ -188,7 +188,7 @@ class MainActivity : AppCompatActivity() {
             timeStamp = System.currentTimeMillis()
             format = AgoraVideoFrame.FORMAT_RGBA
             height = pb.height
-            stride = pb.bytesPerRow
+            stride = pb.bytesPerRow / pb.bytesPerPixel
             buf = pixelData
         }
         agoraRtc.pushExternalVideoFrame(videoFrame)
