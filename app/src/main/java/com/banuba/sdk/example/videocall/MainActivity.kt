@@ -88,15 +88,19 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         configureSdkManager()
-        configureRtcEngine()
         setupLocalVideo()
+    }
+
+    private fun start() {
+        configureRtcEngine()
         joinRtcChannel()
+        cameraDevice.start()
     }
 
     override fun onStart() {
         super.onStart()
         if (checkAllPermissionsGranted()) {
-            cameraDevice.start()
+            start()
         } else {
             requestPermissions(REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
@@ -133,7 +137,7 @@ class MainActivity : AppCompatActivity() {
         results: IntArray
     ) {
         if (checkAllPermissionsGranted()) {
-            cameraDevice.start()
+            start()
         } else {
             Toast.makeText(applicationContext, "Please grant permission.", Toast.LENGTH_LONG).show()
             finish()
