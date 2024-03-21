@@ -2,14 +2,16 @@ package com.banuba.sdk.example.videocall
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Bundle
+import android.content.res.Resources
 import android.view.SurfaceView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.banuba.sdk.frame.FramePixelBuffer
 import com.banuba.sdk.input.CameraDevice
+import com.banuba.sdk.input.CameraDeviceConfigurator
 import com.banuba.sdk.input.CameraInput
+import com.banuba.sdk.manager.BanubaSdkManager
 import com.banuba.sdk.output.FrameOutput
 import com.banuba.sdk.output.IOutput
 import com.banuba.sdk.output.SurfaceOutput
@@ -25,8 +27,6 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity(R.layout.activity_main) {
     companion object {
-        private const val MASK_NAME = "effects/TrollGrandma"
-        private const val REQUEST_CODE_PERMISSIONS = 1001
         private val REQUIRED_PERMISSIONS = arrayOf(
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
@@ -72,12 +72,21 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        configureBanubaSdk()
+    private var lensSelector = CameraDeviceConfigurator.DEFAULT_LENS
+    private var effectAudioEnabled = true
+
+    private val effectConfigItemAdapter by lazy(LazyThreadSafetyMode.NONE) {
+        EffectConfigItemAdapter(
+            Resources.getSystem().displayMetrics.widthPixels,
+            resources.getDimension(R.dimen.setting_list_item_size).toInt()) { item, position ->
+            effectsList.smoothScrollToPosition(position)
+            player.loadAsync(if (item != null) item.path else "")
+        }
     }
 
     private fun start() {
+        initViews()
+        configureBanubaSdk()
         configureRtcEngine()
         cameraDevice.start()
     }
@@ -87,7 +96,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         if (checkAllPermissionsGranted()) {
             start()
         } else {
-            requestPermissions(REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+            requestPermissions(REQUIRED_PERMISSIONS, 0)
         }
     }
 
@@ -120,19 +129,45 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         if (checkAllPermissionsGranted()) {
             start()
         } else {
-            Toast.makeText(applicationContext, "Please grant permission.", Toast.LENGTH_LONG).show()
+            Toast.makeText(applicationContext, "Please grant all required permissions to proceed.", Toast.LENGTH_LONG).show()
             finish()
+        }
+    }
+
+    private fun initViews() {
+        effectConfigItemAdapter.submitList(BanubaSdkManager.loadEffects())
+        effectsList.adapter = effectConfigItemAdapter
+        effectsList.layoutManager = CenterLayoutManager(this)
+
+        switchCamera.setOnClickListener {
+            lensSelector = if (lensSelector == CameraDeviceConfigurator.LensSelector.BACK) {
+                CameraDeviceConfigurator.LensSelector.FRONT
+            } else {
+                CameraDeviceConfigurator.LensSelector.BACK
+            }
+            cameraDevice.configurator.setLens(lensSelector).commit()
+        }
+
+        muteEffectAudio.setOnClickListener {
+            effectAudioEnabled = !effectAudioEnabled
+            player.setEffectVolume(if (effectAudioEnabled) 1F else 0F)
+
+            if (effectAudioEnabled) {
+                audioBackgroundImage.invisible()
+                audioOnImage.visible()
+                audioOffImage.invisible()
+            } else {
+                audioBackgroundImage.visible()
+                audioOnImage.invisible()
+                audioOffImage.visible()
+            }
         }
     }
 
     private fun configureBanubaSdk() {
         localSurfaceView.setOnTouchListener(PlayerTouchListener(this, player))
-        // Turn off audio effects
-        player.setEffectVolume(0F)
         // Set layer will take input frames from and where the player will display the result
         player.use(CameraInput(cameraDevice), arrayOf(surfaceOutput, frameOutput))
-        // Loading the effect
-        player.loadAsync(MASK_NAME)
 
         localSurfaceView.setZOrderMediaOverlay(true)
     }
