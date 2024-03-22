@@ -7,3 +7,5 @@
 /captures
 .externalNativeBuild
 .cxx
+/client_token/com/banuba/sdk/example/common/AgoraClientToken.kt
+/client_token/com/banuba/sdk/example/common/BanubaClientToken.kt

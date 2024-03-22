@@ -7,6 +7,9 @@ import android.view.SurfaceView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.banuba.sdk.example.common.AGORA_APP_ID
+import com.banuba.sdk.example.common.AGORA_CHANNEL_ID
+import com.banuba.sdk.example.common.AGORA_CLIENT_TOKEN
 import com.banuba.sdk.frame.FramePixelBuffer
 import com.banuba.sdk.input.CameraDevice
 import com.banuba.sdk.input.CameraDeviceConfigurator
