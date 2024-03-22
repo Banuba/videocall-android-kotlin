@@ -7,12 +7,6 @@ import android.view.SurfaceView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import com.banuba.sdk.example.common.AGORA_APP_ID
-import com.banuba.sdk.example.common.AGORA_CHANNEL_ID
-import com.banuba.sdk.example.common.AGORA_CLIENT_TOKEN
-import com.banuba.sdk.example.videocall.adapters.CenterLayoutManager
-import com.banuba.sdk.example.videocall.adapters.EffectsListAdapter
-import com.banuba.sdk.example.videocall.adapters.visibility
 import com.banuba.sdk.frame.FramePixelBuffer
 import com.banuba.sdk.input.CameraDevice
 import com.banuba.sdk.input.CameraDeviceConfigurator
@@ -78,17 +72,17 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         }
     }
 
-    private var lensSelector = CameraDeviceConfigurator.DEFAULT_LENS
-    private var effectAudioEnabled = true
-
     private val effectsListAdapter by lazy(LazyThreadSafetyMode.NONE) {
-        EffectsListAdapter(
+        CustomEffectsListAdapter(
             Resources.getSystem().displayMetrics.widthPixels,
-            resources.getDimension(R.dimen.setting_list_item_size).toInt()) { item, position ->
+            resources.getDimension(R.dimen.setting_list_item_size).toInt()) { effectPath, position ->
             effectsList.smoothScrollToPosition(position)
-            player.loadAsync(if (item != null) item.path else "")
+            applyEffect(effectPath)
         }
     }
+
+    private var lensSelector = CameraDeviceConfigurator.DEFAULT_LENS
+    private var effectAudioEnabled = true
 
     private fun start() {
         initViews()
@@ -144,7 +138,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
     private fun initViews() {
         effectsListAdapter.submitList(BanubaSdkManager.loadEffects())
         effectsList.adapter = effectsListAdapter
-        effectsList.layoutManager = CenterLayoutManager(this)
+        effectsList.layoutManager = CustomEffectsListAdapter.CenterLayoutManager(this)
 
         switchCameraButton.setOnClickListener {
             switchCamera()
@@ -177,6 +171,10 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         effectAudioEnabled = !effectAudioEnabled
         val audioVolume = if (effectAudioEnabled) 1F else 0F
         player.setEffectVolume(audioVolume)
+    }
+
+    private fun applyEffect(effectPath: String) {
+        player.loadAsync(effectPath)
     }
 
     private fun updateMuteEffectAudioButtonUI() {
