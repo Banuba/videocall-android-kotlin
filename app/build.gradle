@@ -34,11 +34,24 @@ android {
     buildFeatures {
         viewBinding true
     }
+
+    // Add client_token sources shared across example projects.
+    // You may just move the BanubaClientToken.kt in your app, if such sharing is not neccessary.
+    sourceSets {
+        main {
+            java {
+                srcDir '../client_token'
+            }
+        }
+    }
 }
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'androidx.appcompat:appcompat:1.1.0'
+
+    implementation "androidx.recyclerview:recyclerview:1.2.1"
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
     // Agora SDK dependencies
     implementation "io.agora.rtc:full-sdk:4.0+"

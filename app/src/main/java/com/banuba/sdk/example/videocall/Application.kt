@@ -1,5 +1,6 @@
 package com.banuba.sdk.example.videocall
 
+import com.banuba.sdk.example.common.BANUBA_CLIENT_TOKEN
 import com.banuba.sdk.manager.BanubaSdkManager
 
 class Application : android.app.Application() {

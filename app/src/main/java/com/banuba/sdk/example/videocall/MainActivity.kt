@@ -2,14 +2,22 @@ package com.banuba.sdk.example.videocall
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Bundle
+import android.content.res.Resources
 import android.view.SurfaceView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.banuba.sdk.example.common.AGORA_APP_ID
+import com.banuba.sdk.example.common.AGORA_CHANNEL_ID
+import com.banuba.sdk.example.common.AGORA_CLIENT_TOKEN
+import com.banuba.sdk.example.videocall.adapters.CenterLayoutManager
+import com.banuba.sdk.example.videocall.adapters.EffectsListAdapter
+import com.banuba.sdk.example.videocall.adapters.visibility
 import com.banuba.sdk.frame.FramePixelBuffer
 import com.banuba.sdk.input.CameraDevice
+import com.banuba.sdk.input.CameraDeviceConfigurator
 import com.banuba.sdk.input.CameraInput
+import com.banuba.sdk.manager.BanubaSdkManager
 import com.banuba.sdk.output.FrameOutput
 import com.banuba.sdk.output.IOutput
 import com.banuba.sdk.output.SurfaceOutput
@@ -25,8 +33,6 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity(R.layout.activity_main) {
     companion object {
-        private const val MASK_NAME = "effects/TrollGrandma"
-        private const val REQUEST_CODE_PERMISSIONS = 1001
         private val REQUIRED_PERMISSIONS = arrayOf(
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
@@ -72,13 +78,23 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        configureBanubaSdk()
+    private var lensSelector = CameraDeviceConfigurator.DEFAULT_LENS
+    private var effectAudioEnabled = true
+
+    private val effectsListAdapter by lazy(LazyThreadSafetyMode.NONE) {
+        EffectsListAdapter(
+            Resources.getSystem().displayMetrics.widthPixels,
+            resources.getDimension(R.dimen.setting_list_item_size).toInt()) { item, position ->
+            effectsList.smoothScrollToPosition(position)
+            player.loadAsync(if (item != null) item.path else "")
+        }
     }
 
     private fun start() {
+        initViews()
+        configureBanubaSdk()
         configureRtcEngine()
+        joinVideoCall()
         cameraDevice.start()
     }
 
@@ -87,7 +103,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         if (checkAllPermissionsGranted()) {
             start()
         } else {
-            requestPermissions(REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+            requestPermissions(REQUIRED_PERMISSIONS, 0)
         }
     }
 
@@ -120,25 +136,56 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         if (checkAllPermissionsGranted()) {
             start()
         } else {
-            Toast.makeText(applicationContext, "Please grant permission.", Toast.LENGTH_LONG).show()
+            Toast.makeText(applicationContext, "Please grant all required permissions to proceed.", Toast.LENGTH_LONG).show()
             finish()
+        }
+    }
+
+    private fun initViews() {
+        effectsListAdapter.submitList(BanubaSdkManager.loadEffects())
+        effectsList.adapter = effectsListAdapter
+        effectsList.layoutManager = CenterLayoutManager(this)
+
+        switchCameraButton.setOnClickListener {
+            switchCamera()
+        }
+
+        muteEffectAudioButton.setOnClickListener {
+            muteEffectAudio()
+            updateMuteEffectAudioButtonUI()
         }
     }
 
     private fun configureBanubaSdk() {
         localSurfaceView.setOnTouchListener(PlayerTouchListener(this, player))
-        // Turn off audio effects
-        player.setEffectVolume(0F)
         // Set layer will take input frames from and where the player will display the result
         player.use(CameraInput(cameraDevice), arrayOf(surfaceOutput, frameOutput))
-        // Loading the effect
-        player.loadAsync(MASK_NAME)
 
         localSurfaceView.setZOrderMediaOverlay(true)
     }
 
+    private fun switchCamera() {
+        lensSelector = if (lensSelector == CameraDeviceConfigurator.LensSelector.BACK) {
+            CameraDeviceConfigurator.LensSelector.FRONT
+        } else {
+            CameraDeviceConfigurator.LensSelector.BACK
+        }
+        cameraDevice.configurator.setLens(lensSelector).commit()
+    }
+
+    private fun muteEffectAudio() {
+        effectAudioEnabled = !effectAudioEnabled
+        val audioVolume = if (effectAudioEnabled) 1F else 0F
+        player.setEffectVolume(audioVolume)
+    }
+
+    private fun updateMuteEffectAudioButtonUI() {
+        audioBackgroundImage.visibility(!effectAudioEnabled)
+        audioOnImage.visibility(effectAudioEnabled)
+        audioOffImage.visibility(!effectAudioEnabled)
+    }
+
     private fun configureRtcEngine() {
-        // Initialize the Agora RTC SDK
         agoraRtc.setExternalVideoSource(true, false, Constants.ExternalVideoSourceType.VIDEO_FRAME)
         agoraRtc.setChannelProfile(Constants.CHANNEL_PROFILE_LIVE_BROADCASTING)
         agoraRtc.setClientRole(Constants.CLIENT_ROLE_BROADCASTER)
@@ -150,8 +197,9 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         ))
         agoraRtc.enableVideo()
         agoraRtc.enableAudio()
+    }
 
-        // Join a video call
+    private fun joinVideoCall() {
         agoraRtc.setDefaultAudioRoutetoSpeakerphone(true)
         agoraRtc.joinChannel(AGORA_CLIENT_TOKEN, AGORA_CHANNEL_ID, null, 0)
     }
