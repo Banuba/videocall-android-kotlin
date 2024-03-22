@@ -10,6 +10,9 @@ import androidx.core.content.ContextCompat
 import com.banuba.sdk.example.common.AGORA_APP_ID
 import com.banuba.sdk.example.common.AGORA_CHANNEL_ID
 import com.banuba.sdk.example.common.AGORA_CLIENT_TOKEN
+import com.banuba.sdk.example.videocall.adapters.CenterLayoutManager
+import com.banuba.sdk.example.videocall.adapters.EffectsListAdapter
+import com.banuba.sdk.example.videocall.adapters.visibility
 import com.banuba.sdk.frame.FramePixelBuffer
 import com.banuba.sdk.input.CameraDevice
 import com.banuba.sdk.input.CameraDeviceConfigurator
@@ -78,8 +81,8 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
     private var lensSelector = CameraDeviceConfigurator.DEFAULT_LENS
     private var effectAudioEnabled = true
 
-    private val effectConfigItemAdapter by lazy(LazyThreadSafetyMode.NONE) {
-        EffectConfigItemAdapter(
+    private val effectsListAdapter by lazy(LazyThreadSafetyMode.NONE) {
+        EffectsListAdapter(
             Resources.getSystem().displayMetrics.widthPixels,
             resources.getDimension(R.dimen.setting_list_item_size).toInt()) { item, position ->
             effectsList.smoothScrollToPosition(position)
@@ -91,6 +94,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         initViews()
         configureBanubaSdk()
         configureRtcEngine()
+        joinVideoCall()
         cameraDevice.start()
     }
 
@@ -138,32 +142,17 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
     }
 
     private fun initViews() {
-        effectConfigItemAdapter.submitList(BanubaSdkManager.loadEffects())
-        effectsList.adapter = effectConfigItemAdapter
+        effectsListAdapter.submitList(BanubaSdkManager.loadEffects())
+        effectsList.adapter = effectsListAdapter
         effectsList.layoutManager = CenterLayoutManager(this)
 
-        switchCamera.setOnClickListener {
-            lensSelector = if (lensSelector == CameraDeviceConfigurator.LensSelector.BACK) {
-                CameraDeviceConfigurator.LensSelector.FRONT
-            } else {
-                CameraDeviceConfigurator.LensSelector.BACK
-            }
-            cameraDevice.configurator.setLens(lensSelector).commit()
+        switchCameraButton.setOnClickListener {
+            switchCamera()
         }
 
-        muteEffectAudio.setOnClickListener {
-            effectAudioEnabled = !effectAudioEnabled
-            player.setEffectVolume(if (effectAudioEnabled) 1F else 0F)
-
-            if (effectAudioEnabled) {
-                audioBackgroundImage.invisible()
-                audioOnImage.visible()
-                audioOffImage.invisible()
-            } else {
-                audioBackgroundImage.visible()
-                audioOnImage.invisible()
-                audioOffImage.visible()
-            }
+        muteEffectAudioButton.setOnClickListener {
+            muteEffectAudio()
+            updateMuteEffectAudioButtonUI()
         }
     }
 
@@ -175,8 +164,28 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         localSurfaceView.setZOrderMediaOverlay(true)
     }
 
+    private fun switchCamera() {
+        lensSelector = if (lensSelector == CameraDeviceConfigurator.LensSelector.BACK) {
+            CameraDeviceConfigurator.LensSelector.FRONT
+        } else {
+            CameraDeviceConfigurator.LensSelector.BACK
+        }
+        cameraDevice.configurator.setLens(lensSelector).commit()
+    }
+
+    private fun muteEffectAudio() {
+        effectAudioEnabled = !effectAudioEnabled
+        val audioVolume = if (effectAudioEnabled) 1F else 0F
+        player.setEffectVolume(audioVolume)
+    }
+
+    private fun updateMuteEffectAudioButtonUI() {
+        audioBackgroundImage.visibility(!effectAudioEnabled)
+        audioOnImage.visibility(effectAudioEnabled)
+        audioOffImage.visibility(!effectAudioEnabled)
+    }
+
     private fun configureRtcEngine() {
-        // Initialize the Agora RTC SDK
         agoraRtc.setExternalVideoSource(true, false, Constants.ExternalVideoSourceType.VIDEO_FRAME)
         agoraRtc.setChannelProfile(Constants.CHANNEL_PROFILE_LIVE_BROADCASTING)
         agoraRtc.setClientRole(Constants.CLIENT_ROLE_BROADCASTER)
@@ -188,8 +197,9 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         ))
         agoraRtc.enableVideo()
         agoraRtc.enableAudio()
+    }
 
-        // Join a video call
+    private fun joinVideoCall() {
         agoraRtc.setDefaultAudioRoutetoSpeakerphone(true)
         agoraRtc.joinChannel(AGORA_CLIENT_TOKEN, AGORA_CHANNEL_ID, null, 0)
     }

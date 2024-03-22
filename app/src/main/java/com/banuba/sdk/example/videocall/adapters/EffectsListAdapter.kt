@@ -1,4 +1,4 @@
-package com.banuba.sdk.example.videocall
+package com.banuba.sdk.example.videocall.adapters
 
 import android.view.LayoutInflater
 import android.view.View
@@ -9,19 +9,19 @@ import androidx.recyclerview.widget.RecyclerView
 import com.banuba.sdk.example.videocall.databinding.EffectItemBinding
 import com.banuba.sdk.manager.EffectInfo
 
-class EffectConfigItemAdapter(
-    private val mScreenWidth: Int,
-    private val mElementWidth: Int,
-    private val mItemSelectedCallback: (EffectInfo?, Int) -> Unit
-) : ListAdapter<EffectInfo, EffectConfigItemAdapter.ItemViewHolder>(DiffCallback())  {
+class EffectsListAdapter(
+    private val screenWidth: Int,
+    private val elementWidth: Int,
+    private val itemSelectedCallback: (EffectInfo?, Int) -> Unit
+) : ListAdapter<EffectInfo, EffectsListAdapter.ItemViewHolder>(DiffCallback())  {
 
-    private var mCurrentEffectIndex = -1
+    private var currentEffectIndex = -1
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemViewHolder
             = ItemViewHolder(EffectItemBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
-        val central = (mScreenWidth - mElementWidth) / 2
+        val central = (screenWidth - elementWidth) / 2
         val marginLeft = if (position == 0) central else 12
         val marginRight = if (position == itemCount - 1) central else 12
 
@@ -32,23 +32,18 @@ class EffectConfigItemAdapter(
 
     inner class ItemViewHolder(private val binding: EffectItemBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: EffectInfo, position: Int) = with(binding) {
-            if (position == mCurrentEffectIndex) {
-                selectedBackground.visible()
-            } else {
-                selectedBackground.invisible()
-            }
-
+            selectedBackground.visibility(position == currentEffectIndex)
             image.setImageBitmap(item.previewImage())
 
             root.setOnClickListener {
-                if (mCurrentEffectIndex == position) {
-                    mCurrentEffectIndex = -1
-                    mItemSelectedCallback(null, position)
+                if (currentEffectIndex == position) {
+                    currentEffectIndex = -1
+                    itemSelectedCallback(null, position)
                 } else {
-                    val oldPosition = mCurrentEffectIndex
-                    mCurrentEffectIndex = position
+                    val oldPosition = currentEffectIndex
+                    currentEffectIndex = position
                     notifyItemChanged(oldPosition)
-                    mItemSelectedCallback(item, position)
+                    itemSelectedCallback(item, position)
                 }
                 notifyItemChanged(position)
             }
@@ -62,10 +57,6 @@ class EffectConfigItemAdapter(
     }
 }
 
-fun View.visible() {
-    this.visibility = View.VISIBLE
-}
-
-fun View.invisible() {
-    this.visibility = View.INVISIBLE
+fun View.visibility(visible: Boolean) {
+    this.visibility = if (visible) View.VISIBLE else View.INVISIBLE
 }

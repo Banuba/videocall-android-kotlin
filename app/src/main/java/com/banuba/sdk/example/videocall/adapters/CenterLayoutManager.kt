@@ -1,4 +1,4 @@
-package com.banuba.sdk.example.videocall
+package com.banuba.sdk.example.videocall.adapters
 
 import android.content.Context
 import android.util.DisplayMetrics
