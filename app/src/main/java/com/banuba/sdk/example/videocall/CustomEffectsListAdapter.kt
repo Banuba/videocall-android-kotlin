@@ -10,22 +10,21 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.banuba.sdk.example.videocall.databinding.EffectItemBinding
+import com.banuba.sdk.example.videocall.databinding.ItemEffectBinding
 import com.banuba.sdk.manager.EffectInfo
 
 class CustomEffectsListAdapter(
     private val screenWidth: Int,
-    private val elementWidth: Int,
     private val itemSelectedCallback: (String, Int) -> Unit
 ) : ListAdapter<EffectInfo, CustomEffectsListAdapter.ItemViewHolder>(DiffCallback())  {
 
     private var current = -1
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemViewHolder
-            = ItemViewHolder(EffectItemBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+            = ItemViewHolder(ItemEffectBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
-        val central = (screenWidth - elementWidth) / 2
+        val central = (screenWidth - holder.itemView.width) / 2
         val marginLeft = if (position == 0) central else 12
         val marginRight = if (position == itemCount - 1) central else 12
 
@@ -34,9 +33,9 @@ class CustomEffectsListAdapter(
         holder.bind(getItem(position), position)
     }
 
-    inner class ItemViewHolder(private val binding: EffectItemBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class ItemViewHolder(private val binding: ItemEffectBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: EffectInfo, position: Int) = with(binding) {
-            selectedBackground.visibility(position == current)
+            ring.visibility(position == current)
             image.setImageBitmap(item.previewImage())
 
             root.setOnClickListener {
@@ -76,4 +75,8 @@ class CustomEffectsListAdapter(
 
 fun View.visibility(visible: Boolean) {
     this.visibility = if (visible) View.VISIBLE else View.INVISIBLE
+}
+
+fun View.isVisible(): Boolean {
+    return this.visibility == View.VISIBLE
 }

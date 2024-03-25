@@ -3,6 +3,7 @@ package com.banuba.sdk.example.videocall
 import android.Manifest
 import android.content.pm.PackageManager
 import android.content.res.Resources
+import android.os.Bundle
 import android.view.SurfaceView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -23,73 +24,36 @@ import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.video.AgoraVideoFrame
 import io.agora.rtc2.video.VideoCanvas
 import io.agora.rtc2.video.VideoEncoderConfiguration
-import kotlinx.android.synthetic.main.activity_main.*
+import com.banuba.sdk.example.videocall.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity(R.layout.activity_main) {
-    companion object {
-        private val REQUIRED_PERMISSIONS = arrayOf(
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO
-        )
-    }
+    private lateinit var binding: ActivityMainBinding
 
     // The player executes the main pipeline
-    private val player by lazy(LazyThreadSafetyMode.NONE) {
-        Player()
-    }
+    private lateinit var player: Player
 
     // This camera device will pass frames to the CameraInput
-    private val cameraDevice by lazy(LazyThreadSafetyMode.NONE) {
-        CameraDevice(requireNotNull(this.applicationContext), this@MainActivity)
-    }
+    private lateinit var cameraDevice: CameraDevice
 
     // The result will be displayed on the surface
-    private val surfaceOutput by lazy(LazyThreadSafetyMode.NONE) {
-        SurfaceOutput(localSurfaceView.holder)
-    }
+    private lateinit var surfaceOutput: SurfaceOutput
 
     // The result also will be passed to agora as an array of pixels
-    private val frameOutput by lazy(LazyThreadSafetyMode.NONE) {
-        FrameOutput(object : FrameOutput.IFramePixelBufferProvider {
-            override fun onFrame(output: IOutput, pb: FramePixelBuffer?) {
-                pushCustomFrame(pb!!)
-            }
-        })
-    }
+    private lateinit var frameOutput: FrameOutput
 
     // Agora RTC engine makes a videocall
-    private val agoraRtc: RtcEngine by lazy(LazyThreadSafetyMode.NONE) {
-        RtcEngine.create(this, AGORA_APP_ID, agoraEventHandler)
-    }
-
-    private val agoraEventHandler = object : IRtcEngineEventHandler() {
-        override fun onFirstRemoteVideoDecoded(uid: Int, width: Int, height: Int, elapsed: Int) {
-            runOnUiThread {
-                val surfaceView = setupRemoteVideo(uid)
-                remoteVideoContainer.removeAllViews()
-                remoteVideoContainer.addView(surfaceView)
-            }
-        }
-    }
-
-    private val effectsListAdapter by lazy(LazyThreadSafetyMode.NONE) {
-        CustomEffectsListAdapter(
-            Resources.getSystem().displayMetrics.widthPixels,
-            resources.getDimension(R.dimen.setting_list_item_size).toInt()) { effectPath, position ->
-            effectsList.smoothScrollToPosition(position)
-            applyEffect(effectPath)
-        }
-    }
+    private lateinit var agoraRtc: RtcEngine
 
     private var lensSelector = CameraDeviceConfigurator.DEFAULT_LENS
-    private var effectAudioEnabled = true
 
-    private fun start() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        initBanubaSdk()
+        initRtcEngine()
         initViews()
-        configureBanubaSdk()
-        configureRtcEngine()
-        joinVideoCall()
-        cameraDevice.start()
     }
 
     override fun onStart() {
@@ -135,27 +99,48 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         }
     }
 
-    private fun initViews() {
-        effectsListAdapter.submitList(BanubaSdkManager.loadEffects())
-        effectsList.adapter = effectsListAdapter
-        effectsList.layoutManager = CustomEffectsListAdapter.CenterLayoutManager(this)
+    private fun start() {
+        configureBanubaSdk()
+        configureRtcEngine()
+        joinVideoCall()
+        cameraDevice.start()
+    }
 
-        switchCameraButton.setOnClickListener {
+    private fun initViews() {
+        val effectsListAdapter = CustomEffectsListAdapter(
+            Resources.getSystem().displayMetrics.widthPixels) { effectPath, position ->
+            binding.effectsList.smoothScrollToPosition(position)
+            applyEffect(effectPath)
+        }
+
+        effectsListAdapter.submitList(BanubaSdkManager.loadEffects())
+        binding.effectsList.adapter = effectsListAdapter
+        binding.effectsList.layoutManager = CustomEffectsListAdapter.CenterLayoutManager(this)
+
+        binding.switchCameraButton.setOnClickListener {
             switchCamera()
         }
 
-        muteEffectAudioButton.setOnClickListener {
+        binding.muteEffectAudioButton.setOnClickListener {
             muteEffectAudio()
-            updateMuteEffectAudioButtonUI()
         }
     }
 
+    private fun initBanubaSdk() {
+        player = Player()
+        cameraDevice = CameraDevice(requireNotNull(this.applicationContext), this@MainActivity)
+        surfaceOutput = SurfaceOutput(binding.localSurfaceView.holder)
+        frameOutput = FrameOutput(object : FrameOutput.IFramePixelBufferProvider {
+            override fun onFrame(output: IOutput, pb: FramePixelBuffer?) = pushCustomFrame(pb!!)
+        })
+    }
+
     private fun configureBanubaSdk() {
-        localSurfaceView.setOnTouchListener(PlayerTouchListener(this, player))
         // Set layer will take input frames from and where the player will display the result
         player.use(CameraInput(cameraDevice), arrayOf(surfaceOutput, frameOutput))
 
-        localSurfaceView.setZOrderMediaOverlay(true)
+        binding.localSurfaceView.setOnTouchListener(PlayerTouchListener(this, player))
+        binding.localSurfaceView.setZOrderMediaOverlay(true)
     }
 
     private fun switchCamera() {
@@ -168,19 +153,32 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
     }
 
     private fun muteEffectAudio() {
-        effectAudioEnabled = !effectAudioEnabled
-        val audioVolume = if (effectAudioEnabled) 1F else 0F
+        val audioVolume = if (!binding.audioOnImage.isVisible()) 1F else 0F
         player.setEffectVolume(audioVolume)
+        updateMuteEffectAudioButtonUI()
     }
 
     private fun applyEffect(effectPath: String) {
         player.loadAsync(effectPath)
     }
 
-    private fun updateMuteEffectAudioButtonUI() {
+    private fun updateMuteEffectAudioButtonUI() = with(binding) {
+        val effectAudioEnabled = !audioOnImage.isVisible()
         audioBackgroundImage.visibility(!effectAudioEnabled)
         audioOnImage.visibility(effectAudioEnabled)
         audioOffImage.visibility(!effectAudioEnabled)
+    }
+
+    private fun initRtcEngine() {
+        agoraRtc = RtcEngine.create(this, AGORA_APP_ID, object : IRtcEngineEventHandler() {
+            override fun onFirstRemoteVideoDecoded(uid: Int, width: Int, height: Int, elapsed: Int) {
+                runOnUiThread {
+                    val surfaceView = setupRemoteVideo(uid)
+                    binding.remoteVideoContainer.removeAllViews()
+                    binding.remoteVideoContainer.addView(surfaceView)
+                }
+            }
+        })
     }
 
     private fun configureRtcEngine() {
@@ -224,5 +222,12 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
 
     private fun checkAllPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
+    }
+
+    companion object {
+        private val REQUIRED_PERMISSIONS = arrayOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        )
     }
 }
