@@ -10,7 +10,7 @@ Quick start examples for [Banuba SDK on Android](https://docs.banuba.com/face-ar
 
 # How an example works
 
-This project is based on the BanubaSDKManager. BanubaSdkManager creates and manages the Banuba camera. Agor also has its own camera module, but in this example the Agora camera is not used, so in order to disable Agora camera is called setExternalVideoSource(...).  The frames from the Banuba camera are processed within BanubaSdk and the result transferred to the handler onFrameRendered(...). In the handler, frames are passed to the Agora module via pushExternalVideoFrame(...).
+This project is based on the PlayerAPI. CameraDevice creates and manages the Banuba camera. Agora also has its own camera module, but in this example the Agora camera is not used, so in order to disable Agora camera is called setExternalVideoSource(...).  The frames from the Banuba camera are processed within Banuba Player and the result transferred to the handler FrameOutput. In the handler, frames are passed to the Agora module via pushCustomFrame(...).
 
 # Contributing
 
