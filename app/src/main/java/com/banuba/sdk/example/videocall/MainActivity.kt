@@ -1,20 +1,21 @@
 package com.banuba.sdk.example.videocall
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.content.res.Resources
 import android.os.Bundle
+import android.util.Log
 import android.view.SurfaceView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.banuba.sdk.example.videocall.databinding.ActivityMainBinding
 import com.banuba.sdk.frame.FramePixelBuffer
 import com.banuba.sdk.input.CameraDevice
 import com.banuba.sdk.input.CameraDeviceConfigurator
 import com.banuba.sdk.input.CameraInput
 import com.banuba.sdk.manager.BanubaSdkManager
 import com.banuba.sdk.output.FrameOutput
-import com.banuba.sdk.output.IOutput
 import com.banuba.sdk.output.SurfaceOutput
 import com.banuba.sdk.player.Player
 import com.banuba.sdk.player.PlayerTouchListener
@@ -24,42 +25,45 @@ import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.video.AgoraVideoFrame
 import io.agora.rtc2.video.VideoCanvas
 import io.agora.rtc2.video.VideoEncoderConfiguration
-import com.banuba.sdk.example.videocall.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity(R.layout.activity_main) {
+
+    companion object {
+        private const val TAG = "MainActivity"
+
+        private val REQUIRED_PERMISSIONS = arrayOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        )
+    }
+
     private lateinit var binding: ActivityMainBinding
 
-    // The player executes the main pipeline
-    private lateinit var player: Player
+    private var banubaPlayer: Player? = null
+    private var lensSelector = CameraDeviceConfigurator.LensSelector.FRONT
+    private var cameraDevice: CameraDevice? = null
 
-    // This camera device will pass frames to the CameraInput
-    private lateinit var cameraDevice: CameraDevice
+    private var surfaceOutput: SurfaceOutput? = null
+    private var frameOutput: FrameOutput? = null
 
-    // The result will be displayed on the surface
-    private lateinit var surfaceOutput: SurfaceOutput
+    private var agoraRtc: RtcEngine? = null
 
-    // The result also will be passed to agora as an array of pixels
-    private lateinit var frameOutput: FrameOutput
-
-    // Agora RTC engine makes a videocall
-    private lateinit var agoraRtc: RtcEngine
-
-    private var lensSelector = CameraDeviceConfigurator.DEFAULT_LENS
+    private var muteAudio = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        initBanubaSdk()
-        initRtcEngine()
         initViews()
+        initBanuba()
+        initAgora()
     }
 
     override fun onStart() {
         super.onStart()
         if (checkAllPermissionsGranted()) {
-            start()
+            onPermissionsGranted()
         } else {
             requestPermissions(REQUIRED_PERMISSIONS, 0)
         }
@@ -67,111 +71,115 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
 
     override fun onResume() {
         super.onResume()
-        player.play()
+        banubaPlayer?.play()
     }
 
     override fun onPause() {
         super.onPause()
-        player.pause()
+        banubaPlayer?.pause()
     }
 
     override fun onStop() {
-        cameraDevice.stop()
+        cameraDevice?.stop()
         super.onStop()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        agoraRtc.leaveChannel()
+        agoraRtc?.leaveChannel()
         RtcEngine.destroy()
-        cameraDevice.close()
-        player.close()
-        surfaceOutput.close()
-        frameOutput.close()
+        cameraDevice?.close()
+        banubaPlayer?.close()
+        surfaceOutput?.close()
+        frameOutput?.close()
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, results: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        results: IntArray
+    ) {
         if (checkAllPermissionsGranted()) {
-            start()
+            onPermissionsGranted()
         } else {
-            Toast.makeText(applicationContext, "Please grant all required permissions to proceed.", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                applicationContext,
+                "Please grant all required permissions to proceed.",
+                Toast.LENGTH_LONG
+            ).show()
             finish()
         }
     }
 
-    private fun start() {
-        configureBanubaSdk()
-        configureRtcEngine()
+    private fun onPermissionsGranted() {
+        prepareBanuba()
+        prepareAgora()
+
+        cameraDevice?.start()
+
         joinVideoCall()
-        cameraDevice.start()
     }
 
-    private fun initViews() {
-        val effectsListAdapter = CustomEffectsListAdapter(
-            Resources.getSystem().displayMetrics.widthPixels) { effectPath, position ->
-            binding.effectsList.smoothScrollToPosition(position)
-            applyEffect(effectPath)
-        }
-
-        effectsListAdapter.submitList(BanubaSdkManager.loadEffects())
-        binding.effectsList.adapter = effectsListAdapter
-        binding.effectsList.layoutManager = CustomEffectsListAdapter.CenterLayoutManager(this)
-
-        binding.switchCameraButton.setOnClickListener {
-            switchCamera()
-        }
-
-        binding.muteEffectAudioButton.setOnClickListener {
-            muteEffectAudio()
-        }
-    }
-
-    private fun initBanubaSdk() {
-        player = Player()
-        cameraDevice = CameraDevice(requireNotNull(this.applicationContext), this@MainActivity)
+    private fun initBanuba() {
+        banubaPlayer = Player()
         surfaceOutput = SurfaceOutput(binding.localSurfaceView.holder)
-        frameOutput = FrameOutput(object : FrameOutput.IFramePixelBufferProvider {
-            override fun onFrame(output: IOutput, pb: FramePixelBuffer?) = pushCustomFrame(pb!!)
-        })
+        frameOutput = FrameOutput { _, pb ->
+            pb?.let { processFrame(it) }
+
+        }
     }
 
-    private fun configureBanubaSdk() {
-        // Set layer will take input frames from and where the player will display the result
-        player.use(CameraInput(cameraDevice), arrayOf(surfaceOutput, frameOutput))
+    @SuppressLint("ClickableViewAccessibility")
+    private fun prepareBanuba() {
+        cameraDevice = CameraDevice(applicationContext, this)
 
-        binding.localSurfaceView.setOnTouchListener(PlayerTouchListener(this, player))
+        if (banubaPlayer == null) {
+            Log.w(TAG, "Cannot prepare Banuba SDK: Banuba SDK is not initialized!")
+            return
+        }
+
+        // Set layer will take input frames from and where the player will display the result
+        banubaPlayer?.use(
+            CameraInput(requireNotNull(cameraDevice)),
+            arrayOf(surfaceOutput, frameOutput)
+        )
+
+        binding.localSurfaceView.setOnTouchListener(
+            PlayerTouchListener(
+                this,
+                requireNotNull(banubaPlayer)
+            )
+        )
         binding.localSurfaceView.setZOrderMediaOverlay(true)
     }
 
-    private fun switchCamera() {
+    private fun toggleCameraFacing() {
         lensSelector = if (lensSelector == CameraDeviceConfigurator.LensSelector.BACK) {
             CameraDeviceConfigurator.LensSelector.FRONT
         } else {
             CameraDeviceConfigurator.LensSelector.BACK
         }
-        cameraDevice.configurator.setLens(lensSelector).commit()
+        cameraDevice?.configurator?.setLens(lensSelector)?.commit()
     }
 
-    private fun muteEffectAudio() {
-        val audioVolume = if (!binding.audioOnImage.isVisible()) 1F else 0F
-        player.setEffectVolume(audioVolume)
-        updateMuteEffectAudioButtonUI()
+
+    private fun applyAudioVolume() {
+        val audioVolume = if (muteAudio) 0F else 1F
+        banubaPlayer?.setEffectVolume(audioVolume)
     }
 
     private fun applyEffect(effectPath: String) {
-        player.loadAsync(effectPath)
+        banubaPlayer?.loadAsync(effectPath)
     }
 
-    private fun updateMuteEffectAudioButtonUI() = with(binding) {
-        val effectAudioEnabled = !audioOnImage.isVisible()
-        audioBackgroundImage.visibility(!effectAudioEnabled)
-        audioOnImage.visibility(effectAudioEnabled)
-        audioOffImage.visibility(!effectAudioEnabled)
-    }
-
-    private fun initRtcEngine() {
+    private fun initAgora() {
         agoraRtc = RtcEngine.create(this, AGORA_APP_ID, object : IRtcEngineEventHandler() {
-            override fun onFirstRemoteVideoDecoded(uid: Int, width: Int, height: Int, elapsed: Int) {
+            override fun onFirstRemoteVideoDecoded(
+                uid: Int,
+                width: Int,
+                height: Int,
+                elapsed: Int
+            ) {
                 runOnUiThread {
                     val surfaceView = setupRemoteVideo(uid)
                     binding.remoteVideoContainer.removeAllViews()
@@ -181,33 +189,37 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         })
     }
 
-    private fun configureRtcEngine() {
-        agoraRtc.setExternalVideoSource(true, false, Constants.ExternalVideoSourceType.VIDEO_FRAME)
-        agoraRtc.setChannelProfile(Constants.CHANNEL_PROFILE_LIVE_BROADCASTING)
-        agoraRtc.setClientRole(Constants.CLIENT_ROLE_BROADCASTER)
-        agoraRtc.setVideoEncoderConfiguration(VideoEncoderConfiguration(
-            VideoEncoderConfiguration.VD_1280x720,
-            VideoEncoderConfiguration.FRAME_RATE.FRAME_RATE_FPS_30,
-            VideoEncoderConfiguration.STANDARD_BITRATE,
-            VideoEncoderConfiguration.ORIENTATION_MODE.ORIENTATION_MODE_FIXED_PORTRAIT
-        ))
-        agoraRtc.enableVideo()
-        agoraRtc.enableAudio()
+    private fun prepareAgora() {
+        val rtc = agoraRtc ?: return
+
+        rtc.setExternalVideoSource(true, false, Constants.ExternalVideoSourceType.VIDEO_FRAME)
+        rtc.setChannelProfile(Constants.CHANNEL_PROFILE_LIVE_BROADCASTING)
+        rtc.setClientRole(Constants.CLIENT_ROLE_BROADCASTER)
+        rtc.setVideoEncoderConfiguration(
+            VideoEncoderConfiguration(
+                VideoEncoderConfiguration.VD_1280x720,
+                VideoEncoderConfiguration.FRAME_RATE.FRAME_RATE_FPS_30,
+                VideoEncoderConfiguration.STANDARD_BITRATE,
+                VideoEncoderConfiguration.ORIENTATION_MODE.ORIENTATION_MODE_FIXED_PORTRAIT
+            )
+        )
+        rtc.enableVideo()
+        rtc.enableAudio()
     }
 
     private fun joinVideoCall() {
-        agoraRtc.setDefaultAudioRoutetoSpeakerphone(true)
-        agoraRtc.joinChannel(AGORA_CLIENT_TOKEN, AGORA_CHANNEL_ID, null, 0)
+        Log.d(TAG, "Join video call")
+        agoraRtc?.setDefaultAudioRoutetoSpeakerphone(true)
+        agoraRtc?.joinChannel(AGORA_CLIENT_TOKEN, AGORA_CHANNEL_ID, null, 0)
     }
 
-    private fun setupRemoteVideo(uid: Int): SurfaceView {
-        val surfaceView = SurfaceView(this)
-        val videoCanvas = VideoCanvas(surfaceView, VideoCanvas.RENDER_MODE_HIDDEN, uid)
-        agoraRtc.setupRemoteVideo(videoCanvas)
-        return surfaceView
-    }
+    private fun setupRemoteVideo(uid: Int): SurfaceView =
+        SurfaceView(this).apply {
+            val videoCanvas = VideoCanvas(this, VideoCanvas.RENDER_MODE_HIDDEN, uid)
+            agoraRtc?.setupRemoteVideo(videoCanvas)
+        }
 
-    private fun pushCustomFrame(pb: FramePixelBuffer) {
+    private fun processFrame(pb: FramePixelBuffer) {
         val pixelData = ByteArray(pb.buffer.remaining())
         pb.buffer.get(pixelData)
         val videoFrame = AgoraVideoFrame().apply {
@@ -217,17 +229,50 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             stride = pb.bytesPerRow / pb.bytesPerPixel
             buf = pixelData
         }
-        agoraRtc.pushExternalVideoFrame(videoFrame)
+        agoraRtc?.pushExternalVideoFrame(videoFrame)
     }
 
     private fun checkAllPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
 
-    companion object {
-        private val REQUIRED_PERMISSIONS = arrayOf(
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO
-        )
+    private fun initViews() {
+        invalidateViewState()
+
+        val effectsAdapter = CustomEffectsListAdapter(
+            resources.displayMetrics.widthPixels
+        ) { effectPath, position ->
+            applyEffect(effectPath)
+
+            binding.effectsList.smoothScrollToPosition(position)
+        }
+
+        effectsAdapter.submitList(BanubaSdkManager.loadEffects())
+
+        binding.effectsList.layoutManager = CustomEffectsListAdapter.CenterLayoutManager(this)
+        binding.effectsList.adapter = effectsAdapter
+
+        binding.switchCameraImage.setOnClickListener {
+            toggleCameraFacing()
+            invalidateViewState()
+        }
+
+        binding.muteAudioView.setOnClickListener {
+            muteAudio = !muteAudio
+            applyAudioVolume()
+            invalidateViewState()
+        }
+    }
+
+    private fun invalidateViewState() {
+        with(binding) {
+            muteAudioView.setImageResource(
+                if (muteAudio) {
+                    R.drawable.ic_audio_off
+                } else {
+                    R.drawable.ic_audio_on
+                }
+            )
+        }
     }
 }

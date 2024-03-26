@@ -3,16 +3,16 @@ package com.banuba.sdk.example.videocall
 import com.banuba.sdk.manager.BanubaSdkManager
 
 /**
- * Client token for Banuba SDK. Consider obfuscation in release app.
+ * Key for Banuba SDK
  */
-const val BANUBA_CLIENT_TOKEN: String = <#Place your token here#>
+const val BANUBA_TOKEN: String = SET KEY
 
 /**
- * App id for Agora SDK. Consider obfuscation in release app.
+ * Keys for Agora SDK
  */
-const val AGORA_APP_ID = <#Place your agora app ID here#>
-const val AGORA_CLIENT_TOKEN = <#Place your agora token here#>
-const val AGORA_CHANNEL_ID = <#Place your agora channel ID here#>
+const val AGORA_APP_ID = SET KEY
+const val AGORA_CLIENT_TOKEN = SET KEY
+const val AGORA_CHANNEL_ID = SET KEY
 
 
 class Application : android.app.Application() {
@@ -28,6 +28,6 @@ class Application : android.app.Application() {
         //
         //  Please, contact Banuba for obtain a correct client token.
 
-        BanubaSdkManager.initialize(this, BANUBA_CLIENT_TOKEN)
+        BanubaSdkManager.initialize(this, BANUBA_TOKEN)
     }
 }
