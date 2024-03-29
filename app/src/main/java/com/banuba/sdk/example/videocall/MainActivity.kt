@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
     }
 
     private lateinit var binding: ActivityMainBinding
+    private var effectsAdapter: CustomEffectsListAdapter? = null
 
     private var banubaPlayer: Player? = null
     private var lensSelector = CameraDeviceConfigurator.LensSelector.FRONT
@@ -151,6 +152,12 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             )
         )
         binding.localSurfaceView.setZOrderMediaOverlay(true)
+
+        val effects = BanubaSdkManager.loadEffects()
+        effectsAdapter?.submitList(effects)
+
+        // Apply first effect
+        applyEffect(effects[0].path)
     }
 
     private fun toggleCameraFacing() {
@@ -239,15 +246,13 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
     private fun initViews() {
         invalidateViewState()
 
-        val effectsAdapter = CustomEffectsListAdapter(
+         effectsAdapter = CustomEffectsListAdapter(
             resources.displayMetrics.widthPixels
         ) { effectPath, position ->
             applyEffect(effectPath)
 
             binding.effectsList.smoothScrollToPosition(position)
         }
-
-        effectsAdapter.submitList(BanubaSdkManager.loadEffects())
 
         binding.effectsList.layoutManager = CustomEffectsListAdapter.CenterLayoutManager(this)
         binding.effectsList.adapter = effectsAdapter

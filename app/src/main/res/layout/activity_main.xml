@@ -12,8 +12,8 @@
 
     <SurfaceView
         android:id="@+id/localSurfaceView"
-        android:layout_width="126dp"
-        android:layout_height="224dp"
+        android:layout_width="153dp"
+        android:layout_height="272dp"
         android:layout_marginStart="32dp"
         android:layout_marginTop="32dp"
         android:background="@drawable/bg_stroke_white"

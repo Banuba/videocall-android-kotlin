@@ -24,7 +24,7 @@ class CustomEffectsListAdapter(
         private const val OFFSET = 12
     }
 
-    private var current = -1
+    private var selectedIndex = 0
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemViewHolder =
         ItemViewHolder(
@@ -60,18 +60,24 @@ class CustomEffectsListAdapter(
 
     inner class ItemViewHolder(private val binding: ItemEffectBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(item: EffectInfo, position: Int) = with(binding) {
-            ring.visibility(position == current)
-            image.setImageBitmap(item.previewImage())
+        fun bind(effect: EffectInfo, position: Int) = with(binding) {
+            ring.visibility(position == selectedIndex)
+
+            val previewResource = effectPreviews[effect.name]
+            if (previewResource == null) {
+                image.setImageResource(R.drawable.ic_regular_background)
+            } else {
+                image.setImageResource(previewResource)
+            }
 
             root.setOnClickListener {
-                val oldPosition = current
-                val effectPath = if (current == position) {
+                val oldPosition = selectedIndex
+                val effectPath = if (selectedIndex == position) {
                     ""
                 } else {
-                    item.path
+                    effect.path
                 }
-                current = if (current == position) {
+                selectedIndex = if (selectedIndex == position) {
                     -1
                 } else {
                     position
