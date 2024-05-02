@@ -2,6 +2,19 @@ package com.banuba.sdk.example.videocall
 
 import com.banuba.sdk.manager.BanubaSdkManager
 
+/**
+ * Key for Banuba SDK
+ */
+const val BANUBA_TOKEN: String = SET KEY
+
+/**
+ * Keys for Agora SDK
+ */
+const val AGORA_APP_ID = SET KEY
+const val AGORA_CLIENT_TOKEN = SET KEY
+const val AGORA_CHANNEL_ID = SET KEY
+
+
 class Application : android.app.Application() {
 
     override fun onCreate() {
@@ -15,8 +28,6 @@ class Application : android.app.Application() {
         //
         //  Please, contact Banuba for obtain a correct client token.
 
-        BanubaSdkManager.initialize(this,
-            BANUBA_CLIENT_TOKEN
-        )
+        BanubaSdkManager.initialize(this, BANUBA_TOKEN)
     }
 }

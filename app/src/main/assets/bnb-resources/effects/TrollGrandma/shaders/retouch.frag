@@ -165,8 +165,10 @@ void main()
 #endif
 
 #ifdef NORMAL_LAYER
-    vec4 makeup2 = BNB_TEXTURE_2D(BNB_SAMPLER_2D(tex_normalMakeup), uvh );
-    res.xyz = mix( res.xyz, makeup2.xyz, makeup2.w );
+    #ifndef BNB_GL_ES_1
+        vec4 makeup2 = BNB_TEXTURE_2D(BNB_SAMPLER_2D(tex_normalMakeup), uvh );
+        res.xyz = mix( res.xyz, makeup2.xyz, makeup2.w );
+    #endif
 #endif
 
     bnb_FragColor = res;
